@@ -10,6 +10,8 @@ Web Bluetoothを使用しているため、パソコン上のGoogle Chrome、And
 - Bitmap command "GS v 0"
 - 58mm paper (384dot)
 
+<img width="720" alt="Min iPrinter" src="https://github.com/user-attachments/assets/3931b120-4dfd-4914-9b6b-e8d2c89c76d3" />
+
 ## License
 
 MIT License (c) 2026 Mitsumine Suzu (verylowfreq)
