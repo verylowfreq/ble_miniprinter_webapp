@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+        <title>BLE ESC/POS Bitmap Printer</title>
+        <style>
+            :root {
+                --bg: #f5f5f7;
+                --panel: #ffffff;
+                --text: #1f2937;
+                --muted: #6b7280;
+                --border: #d1d5db;
+                --accent: #2563eb;
+                --accent-dark: #1d4ed8;
+                --danger: #dc2626;
+                --ok: #059669;
+                --warn: #d97706;
+                --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+                --radius: 18px;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                line-height: 1.5;
+            }
+
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                padding: 14px 16px;
+                background: rgba(245, 245, 247, 0.92);
+                backdrop-filter: blur(12px);
+                border-bottom: 1px solid rgba(209, 213, 219, 0.7);
+            }
+
+            header h1 {
+                margin: 0;
+                font-size: 18px;
+                line-height: 1.2;
+            }
+
+            header .sub {
+                margin-top: 4px;
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            main {
+                width: min(920px, 100%);
+                margin: 0 auto;
+                padding: 16px 14px 56px;
+            }
+
+            section {
+                background: var(--panel);
+                border: 1px solid rgba(209, 213, 219, 0.8);
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+                padding: 16px;
+                margin-bottom: 14px;
+            }
+
+            section h2 {
+                margin: 0 0 12px;
+                font-size: 17px;
+            }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .grid.three {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            @media (max-width: 720px) {
+                .grid,
+                .grid.three {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            label {
+                display: block;
+                font-size: 12px;
+                color: var(--muted);
+                margin-bottom: 5px;
+            }
+
+            input[type="text"],
+            input[type="number"],
+            select {
+                width: 100%;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 10px 11px;
+                font: inherit;
+                background: #fff;
+                color: var(--text);
+            }
+
+            input[type="range"] {
+                width: 100%;
+            }
+
+            input[type="file"] {
+                width: 100%;
+                padding: 12px;
+                background: #f9fafb;
+                border: 1px dashed var(--border);
+                border-radius: 14px;
+            }
+
+            button {
+                border: 0;
+                border-radius: 999px;
+                padding: 10px 14px;
+                font: inherit;
+                font-weight: 700;
+                color: #fff;
+                background: var(--accent);
+                cursor: pointer;
+                touch-action: manipulation;
+            }
+
+            button:hover {
+                background: var(--accent-dark);
+            }
+            button:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+
+            button.secondary {
+                background: #e5e7eb;
+                color: #111827;
+            }
+
+            button.secondary:hover {
+                background: #d1d5db;
+            }
+
+            button.danger {
+                background: var(--danger);
+            }
+
+            .button-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                margin-top: 10px;
+            }
+
+            .status {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 10px;
+                border-radius: 999px;
+                background: #f3f4f6;
+                color: #374151;
+                font-size: 13px;
+                font-weight: 700;
+            }
+
+            .dot {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: #9ca3af;
+            }
+
+            .status.connected .dot {
+                background: var(--ok);
+            }
+            .status.sending .dot {
+                background: var(--warn);
+            }
+            .status.error .dot {
+                background: var(--danger);
+            }
+
+            .hint {
+                color: var(--muted);
+                font-size: 13px;
+                margin: 8px 0 0;
+            }
+
+            .canvas-wrap {
+                width: 100%;
+                overflow: auto;
+                background: #e5e7eb;
+                border-radius: 16px;
+                padding: 12px;
+                border: 1px solid var(--border);
+            }
+
+            canvas {
+                display: block;
+                max-width: 100%;
+                height: auto;
+                margin: 0 auto;
+                background: #fff;
+                border-radius: 8px;
+                image-rendering: pixelated;
+                touch-action: none;
+            }
+
+            #editCanvas {
+                width: min(384px, 100%);
+                min-height: 240px;
+            }
+
+            #printCanvas {
+                width: min(384px, 100%);
+            }
+
+            .kv {
+                display: grid;
+                grid-template-columns: 140px 1fr;
+                gap: 6px 10px;
+                font-size: 13px;
+                margin-top: 10px;
+            }
+
+            .kv div:nth-child(odd) {
+                color: var(--muted);
+            }
+
+            progress {
+                width: 100%;
+                height: 18px;
+                accent-color: var(--accent);
+            }
+
+            pre {
+                max-height: 220px;
+                overflow: auto;
+                background: #111827;
+                color: #d1d5db;
+                border-radius: 14px;
+                padding: 12px;
+                font-size: 12px;
+                white-space: pre-wrap;
+            }
+
+            details {
+                margin-top: 10px;
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 10px 12px;
+                background: #f9fafb;
+            }
+
+            summary {
+                cursor: pointer;
+                font-weight: 700;
+            }
+
+            .pill {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 999px;
+                background: #eef2ff;
+                color: #3730a3;
+                font-size: 12px;
+                font-weight: 700;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>BLE ESC/POS Bitmap Printer</h1>
+            <div class="sub">
+                Android Chrome / WebBluetooth / GS v 0 / 58mm 384dot
+            </div>
+        </header>
+
+        <main>
+            <section>
+                <h2>1. プリンター接続</h2>
+                <div id="status" class="status">
+                    <span class="dot"></span><span id="statusText">未接続</span>
+                </div>
+                <div class="grid" style="margin-top: 12px">
+                    <div>
+                        <label for="serviceUuid">Service UUID</label>
+                        <input
+                            id="serviceUuid"
+                            type="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                        />
+                    </div>
+                    <div>
+                        <label for="txUuid">TX Characteristic UUID</label>
+                        <input
+                            id="txUuid"
+                            type="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                        />
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button id="connectBtn">プリンターに接続</button>
+                    <button id="disconnectBtn" class="secondary" disabled>
+                        切断
+                    </button>
+                    <button id="testFeedBtn" class="secondary" disabled>
+                        紙送りテスト
+                    </button>
+                </div>
+                <p class="hint">
+                    Service UUIDが違う場合は接続に失敗します。TX
+                    UUIDは指定値を初期設定済みです。
+                </p>
+            </section>
+
+            <section>
+                <h2>2. 画像読み込み</h2>
+                <input id="fileInput" type="file" accept="image/*" />
+                <div class="kv">
+                    <div>ファイル</div>
+                    <div id="fileName">未選択</div>
+                    <div>元画像サイズ</div>
+                    <div id="imageSize">-</div>
+                </div>
+            </section>
+
+            <section>
+                <h2>3. 編集プレビュー</h2>
+                <div class="canvas-wrap">
+                    <canvas id="editCanvas" width="384" height="420"></canvas>
+                </div>
+                <div class="button-row">
+                    <button id="zoomOutBtn" class="secondary">縮小</button>
+                    <button id="zoomInBtn" class="secondary">拡大</button>
+                    <button id="fitBtn" class="secondary">
+                        用紙幅に合わせる
+                    </button>
+                    <button id="centerBtn" class="secondary">中央寄せ</button>
+                    <button id="resetBtn" class="secondary">リセット</button>
+                </div>
+                <p class="hint">
+                    キャンバス上でドラッグ移動。対応端末では2本指ピンチで拡大縮小できます。
+                </p>
+            </section>
+
+            <section>
+                <h2>4. 画像処理</h2>
+                <div class="grid three">
+                    <div>
+                        <label for="mode">処理方式</label>
+                        <select id="mode">
+                            <option value="threshold">単純2値化</option>
+                            <option value="floyd-steinberg">
+                                Floyd–Steinberg
+                            </option>
+                            <option value="bayer">Bayer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="threshold"
+                            >しきい値:
+                            <span id="thresholdValue">128</span></label
+                        >
+                        <input
+                            id="threshold"
+                            type="range"
+                            min="0"
+                            max="255"
+                            value="128"
+                        />
+                    </div>
+                    <div>
+                        <label for="gamma"
+                            >ガンマ: <span id="gammaValue">1.00</span></label
+                        >
+                        <input
+                            id="gamma"
+                            type="range"
+                            min="20"
+                            max="300"
+                            value="100"
+                        />
+                    </div>
+                    <div>
+                        <label for="brightness"
+                            >明るさ: <span id="brightnessValue">0</span></label
+                        >
+                        <input
+                            id="brightness"
+                            type="range"
+                            min="-100"
+                            max="100"
+                            value="0"
+                        />
+                    </div>
+                    <div>
+                        <label for="contrast"
+                            >コントラスト:
+                            <span id="contrastValue">0</span></label
+                        >
+                        <input
+                            id="contrast"
+                            type="range"
+                            min="-100"
+                            max="100"
+                            value="0"
+                        />
+                    </div>
+                    <div>
+                        <label>&nbsp;</label>
+                        <button id="invertBtn" class="secondary" type="button">
+                            反転: OFF
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>5. 印刷プレビュー <span class="pill">384 dot</span></h2>
+                <div class="canvas-wrap">
+                    <canvas id="printCanvas" width="384" height="1"></canvas>
+                </div>
+                <div class="kv">
+                    <div>印刷サイズ</div>
+                    <div id="printSize">-</div>
+                    <div>Bitmapデータ</div>
+                    <div id="bitmapSize">-</div>
+                    <div>ESC/POSデータ</div>
+                    <div id="escposSize">-</div>
+                    <div>送信チャンク</div>
+                    <div id="chunkCount">-</div>
+                </div>
+            </section>
+
+            <section>
+                <h2>6. 印刷</h2>
+                <div class="grid three">
+                    <div>
+                        <label for="chunkSize">chunkSize</label>
+                        <input
+                            id="chunkSize"
+                            type="number"
+                            min="20"
+                            max="512"
+                            step="1"
+                            value="100"
+                        />
+                    </div>
+                    <div>
+                        <label for="delayMs">delayMs</label>
+                        <input
+                            id="delayMs"
+                            type="number"
+                            min="0"
+                            max="200"
+                            step="1"
+                            value="10"
+                        />
+                    </div>
+                    <div>
+                        <label for="feedLines">印刷後紙送り</label>
+                        <input
+                            id="feedLines"
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value="3"
+                        />
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button id="printBtn" disabled>印刷する</button>
+                    <button id="cancelBtn" class="danger" disabled>
+                        キャンセル
+                    </button>
+                </div>
+                <progress id="progress" value="0" max="100"></progress>
+                <p class="hint" id="progressText">未送信</p>
+            </section>
+
+            <section>
+                <h2>ログ</h2>
+                <pre id="log"></pre>
+                <details>
+                    <summary>実装メモ</summary>
+                    <p class="hint">
+                        GS v 0形式:
+                        <code>1D 76 30 00 xL xH yL yH [bitmap]</code
+                        >。384dot幅なので横バイト数は48です。黒ドットを1、白ドットを0として左からbit7→bit0に詰めます。
+                    </p>
+                </details>
+            </section>
+        </main>
+
+        <script>
+            "use strict";
+
+            const DEFAULTS = {
+                serviceUuid: "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+                txUuid: "49535343-8841-43f4-a8d4-ecbe34729bb3",
+                paperWidthDots: 384,
+                chunkSize: 100,
+                delayMs: 10,
+                feedLines: 3,
+                mode: "floyd-steinberg",
+                threshold: 128,
+                brightness: 0,
+                contrast: 0,
+                gamma: 1,
+                invert: false,
+            };
+
+            const STORAGE_PREFIX = "bleEscposBitmapPrinter.";
+
+            const state = {
+                ble: {
+                    device: null,
+                    server: null,
+                    service: null,
+                    tx: null,
+                    connected: false,
+                    sending: false,
+                    cancelRequested: false,
+                },
+                image: {
+                    bitmap: null,
+                    fileName: "",
+                    width: 0,
+                    height: 0,
+                },
+                transform: {
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                },
+                output: {
+                    imageData: null,
+                    bitmapBytes: null,
+                    escposBytes: null,
+                    height: 1,
+                },
+                pointers: new Map(),
+                lastPinchDistance: null,
+            };
+
+            const $ = (id) => document.getElementById(id);
+            const editCanvas = $("editCanvas");
+            const editCtx = editCanvas.getContext("2d", {
+                willReadFrequently: true,
+            });
+            const printCanvas = $("printCanvas");
+            const printCtx = printCanvas.getContext("2d", {
+                willReadFrequently: true,
+            });
+
+            const els = {
+                status: $("status"),
+                statusText: $("statusText"),
+                serviceUuid: $("serviceUuid"),
+                txUuid: $("txUuid"),
+                connectBtn: $("connectBtn"),
+                disconnectBtn: $("disconnectBtn"),
+                testFeedBtn: $("testFeedBtn"),
+                fileInput: $("fileInput"),
+                fileName: $("fileName"),
+                imageSize: $("imageSize"),
+                zoomOutBtn: $("zoomOutBtn"),
+                zoomInBtn: $("zoomInBtn"),
+                fitBtn: $("fitBtn"),
+                centerBtn: $("centerBtn"),
+                resetBtn: $("resetBtn"),
+                mode: $("mode"),
+                threshold: $("threshold"),
+                thresholdValue: $("thresholdValue"),
+                brightness: $("brightness"),
+                brightnessValue: $("brightnessValue"),
+                contrast: $("contrast"),
+                contrastValue: $("contrastValue"),
+                gamma: $("gamma"),
+                gammaValue: $("gammaValue"),
+                invertBtn: $("invertBtn"),
+                printSize: $("printSize"),
+                bitmapSize: $("bitmapSize"),
+                escposSize: $("escposSize"),
+                chunkCount: $("chunkCount"),
+                chunkSize: $("chunkSize"),
+                delayMs: $("delayMs"),
+                feedLines: $("feedLines"),
+                printBtn: $("printBtn"),
+                cancelBtn: $("cancelBtn"),
+                progress: $("progress"),
+                progressText: $("progressText"),
+                log: $("log"),
+            };
+
+            function loadSetting(key, fallback) {
+                const value = localStorage.getItem(STORAGE_PREFIX + key);
+                if (value === null) return fallback;
+                if (typeof fallback === "number") return Number(value);
+                if (typeof fallback === "boolean") return value === "true";
+                return value;
+            }
+
+            function saveSetting(key, value) {
+                localStorage.setItem(STORAGE_PREFIX + key, String(value));
+            }
+
+            function initSettings() {
+                els.serviceUuid.value = loadSetting(
+                    "serviceUuid",
+                    DEFAULTS.serviceUuid,
+                );
+                els.txUuid.value = loadSetting("txUuid", DEFAULTS.txUuid);
+                els.chunkSize.value = loadSetting(
+                    "chunkSize",
+                    DEFAULTS.chunkSize,
+                );
+                els.delayMs.value = loadSetting("delayMs", DEFAULTS.delayMs);
+                els.feedLines.value = loadSetting(
+                    "feedLines",
+                    DEFAULTS.feedLines,
+                );
+                els.mode.value = loadSetting("mode", DEFAULTS.mode);
+                els.threshold.value = loadSetting(
+                    "threshold",
+                    DEFAULTS.threshold,
+                );
+                els.brightness.value = loadSetting(
+                    "brightness",
+                    DEFAULTS.brightness,
+                );
+                els.contrast.value = loadSetting("contrast", DEFAULTS.contrast);
+                els.gamma.value = Math.round(
+                    loadSetting("gamma", DEFAULTS.gamma) * 100,
+                );
+                DEFAULTS.invert = loadSetting("invert", DEFAULTS.invert);
+                updateControlLabels();
+            }
+
+            function log(message) {
+                const now = new Date().toLocaleTimeString();
+                els.log.textContent += `[${now}] ${message}\n`;
+                els.log.scrollTop = els.log.scrollHeight;
+            }
+
+            function setStatus(type, text) {
+                els.status.className = "status" + (type ? " " + type : "");
+                els.statusText.textContent = text;
+            }
+
+            function sleep(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
+            function concatBytes(...arrays) {
+                const total = arrays.reduce((sum, arr) => sum + arr.length, 0);
+                const out = new Uint8Array(total);
+                let offset = 0;
+                for (const arr of arrays) {
+                    out.set(arr, offset);
+                    offset += arr.length;
+                }
+                return out;
+            }
+
+            function clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
+            }
+
+            function updateControlLabels() {
+                els.thresholdValue.textContent = els.threshold.value;
+                els.brightnessValue.textContent = els.brightness.value;
+                els.contrastValue.textContent = els.contrast.value;
+                els.gammaValue.textContent = (
+                    Number(els.gamma.value) / 100
+                ).toFixed(2);
+                els.invertBtn.textContent =
+                    "反転: " + (DEFAULTS.invert ? "ON" : "OFF");
+            }
+
+            function getProcessingOptions() {
+                return {
+                    mode: els.mode.value,
+                    threshold: Number(els.threshold.value),
+                    brightness: Number(els.brightness.value),
+                    contrast: Number(els.contrast.value),
+                    gamma: Number(els.gamma.value) / 100,
+                    invert: DEFAULTS.invert,
+                };
+            }
+
+            function getPrintOptions() {
+                return {
+                    paperWidthDots: DEFAULTS.paperWidthDots,
+                    chunkSize: Math.max(
+                        1,
+                        Number(els.chunkSize.value) || DEFAULTS.chunkSize,
+                    ),
+                    delayMs: Math.max(
+                        0,
+                        Number(els.delayMs.value) || DEFAULTS.delayMs,
+                    ),
+                    feedLines: clamp(Number(els.feedLines.value) || 0, 0, 255),
+                };
+            }
+
+            function updateButtons() {
+                const hasImage = Boolean(state.image.bitmap);
+                const connected = state.ble.connected;
+                const sending = state.ble.sending;
+                els.connectBtn.disabled = sending;
+                els.disconnectBtn.disabled = !connected || sending;
+                els.testFeedBtn.disabled = !connected || sending;
+                els.printBtn.disabled =
+                    !connected ||
+                    !hasImage ||
+                    sending ||
+                    !state.output.escposBytes;
+                els.cancelBtn.disabled = !sending;
+            }
+
+            async function connectPrinter() {
+                if (!navigator.bluetooth) {
+                    setStatus("error", "WebBluetooth非対応");
+                    log(
+                        "このブラウザはWebBluetoothに対応していません。Android Chromeで試してください。",
+                    );
+                    return;
+                }
+
+                const serviceUuid = els.serviceUuid.value.trim();
+                const txUuid = els.txUuid.value.trim();
+                saveSetting("serviceUuid", serviceUuid);
+                saveSetting("txUuid", txUuid);
+
+                try {
+                    setStatus("", "デバイス選択中");
+                    log("Bluetoothデバイスを選択します。");
+
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [serviceUuid],
+                    });
+
+                    device.addEventListener(
+                        "gattserverdisconnected",
+                        onDisconnected,
+                    );
+
+                    setStatus("", "接続中");
+                    log(`接続中: ${device.name || "(no name)"}`);
+
+                    const server = await device.gatt.connect();
+                    const service = await server.getPrimaryService(serviceUuid);
+                    const tx = await service.getCharacteristic(txUuid);
+
+                    state.ble.device = device;
+                    state.ble.server = server;
+                    state.ble.service = service;
+                    state.ble.tx = tx;
+                    state.ble.connected = true;
+
+                    setStatus(
+                        "connected",
+                        `接続済み: ${device.name || "(no name)"}`,
+                    );
+                    log("接続成功。");
+                } catch (error) {
+                    setStatus("error", "接続エラー");
+                    log(`接続失敗: ${error.message || error}`);
+                    state.ble.connected = false;
+                } finally {
+                    updateButtons();
+                }
+            }
+
+            function disconnectPrinter() {
+                if (state.ble.device && state.ble.device.gatt.connected) {
+                    state.ble.device.gatt.disconnect();
+                }
+                onDisconnected();
+            }
+
+            function onDisconnected() {
+                state.ble.connected = false;
+                state.ble.server = null;
+                state.ble.service = null;
+                state.ble.tx = null;
+                setStatus("", "未接続");
+                log("切断しました。");
+                updateButtons();
+            }
+
+            async function writeChunk(characteristic, chunk) {
+                if (
+                    typeof characteristic.writeValueWithoutResponse ===
+                    "function"
+                ) {
+                    await characteristic.writeValueWithoutResponse(chunk);
+                } else {
+                    await characteristic.writeValue(chunk);
+                }
+            }
+
+            async function sendBytes(bytes) {
+                if (!state.ble.tx)
+                    throw new Error("TX Characteristicがありません。");
+                const { chunkSize, delayMs } = getPrintOptions();
+                const total = bytes.length;
+                const chunks = Math.ceil(total / chunkSize);
+                state.ble.sending = true;
+                state.ble.cancelRequested = false;
+                setStatus("sending", "送信中");
+                updateButtons();
+
+                try {
+                    for (
+                        let offset = 0, index = 0;
+                        offset < total;
+                        offset += chunkSize, index++
+                    ) {
+                        if (state.ble.cancelRequested)
+                            throw new Error("送信をキャンセルしました。");
+                        const chunk = bytes.slice(offset, offset + chunkSize);
+                        await writeChunk(state.ble.tx, chunk);
+                        const sent = Math.min(offset + chunk.length, total);
+                        const percent = Math.round((sent / total) * 100);
+                        els.progress.value = percent;
+                        els.progressText.textContent = `${sent.toLocaleString()} / ${total.toLocaleString()} bytes (${index + 1}/${chunks} chunks)`;
+                        if (delayMs > 0) await sleep(delayMs);
+                    }
+                    els.progress.value = 100;
+                    els.progressText.textContent = "送信完了";
+                    setStatus(
+                        "connected",
+                        `接続済み: ${state.ble.device?.name || "(no name)"}`,
+                    );
+                    log(`送信完了: ${total.toLocaleString()} bytes`);
+                } finally {
+                    state.ble.sending = false;
+                    updateButtons();
+                }
+            }
+
+            async function testFeed() {
+                try {
+                    // await sendBytes(new Uint8Array([0x1b, 0x40, 0x1b, 0x64, 0x03]));
+                    await sendBytes(new Uint8Array([0x0a, 0x0a, 0x0a]));
+                } catch (error) {
+                    setStatus("error", "送信エラー");
+                    log(`紙送りテスト失敗: ${error.message || error}`);
+                }
+            }
+
+            async function loadImage(file) {
+                if (!file) return;
+                try {
+                    const bitmap = await createImageBitmap(file, {
+                        imageOrientation: "from-image",
+                    });
+                    state.image.bitmap = bitmap;
+                    state.image.fileName = file.name;
+                    state.image.width = bitmap.width;
+                    state.image.height = bitmap.height;
+                    els.fileName.textContent = file.name;
+                    els.imageSize.textContent = `${bitmap.width} × ${bitmap.height} px`;
+                    fitImageToWidth();
+                    log(
+                        `画像読み込み: ${file.name} (${bitmap.width}x${bitmap.height})`,
+                    );
+                } catch (error) {
+                    log(`画像読み込み失敗: ${error.message || error}`);
+                }
+            }
+
+            function fitImageToWidth() {
+                const bitmap = state.image.bitmap;
+                if (!bitmap) return;
+                const scale = DEFAULTS.paperWidthDots / bitmap.width;
+                state.transform.scale = scale;
+                state.transform.x = 0;
+                state.transform.y = 20;
+                resizeEditCanvas();
+                renderAll();
+            }
+
+            function centerImage() {
+                const bitmap = state.image.bitmap;
+                if (!bitmap) return;
+                const drawnW = bitmap.width * state.transform.scale;
+                const drawnH = bitmap.height * state.transform.scale;
+                state.transform.x = (DEFAULTS.paperWidthDots - drawnW) / 2;
+                state.transform.y = Math.max(
+                    0,
+                    (editCanvas.height - drawnH) / 2,
+                );
+                renderAll();
+            }
+
+            function resetTransform() {
+                if (!state.image.bitmap) return;
+                fitImageToWidth();
+            }
+
+            function resizeEditCanvas() {
+                const bitmap = state.image.bitmap;
+                if (!bitmap) {
+                    editCanvas.height = 420;
+                    return;
+                }
+                const drawnH = bitmap.height * state.transform.scale;
+                editCanvas.height = clamp(Math.ceil(drawnH + 80), 260, 3000);
+            }
+
+            function renderEditCanvas() {
+                editCtx.save();
+                editCtx.setTransform(1, 0, 0, 1, 0, 0);
+                editCtx.fillStyle = "#ffffff";
+                editCtx.fillRect(0, 0, editCanvas.width, editCanvas.height);
+                editCtx.strokeStyle = "#d1d5db";
+                editCtx.setLineDash([6, 6]);
+                editCtx.strokeRect(
+                    0.5,
+                    0.5,
+                    editCanvas.width - 1,
+                    editCanvas.height - 1,
+                );
+                editCtx.restore();
+
+                const bitmap = state.image.bitmap;
+                if (!bitmap) {
+                    editCtx.fillStyle = "#6b7280";
+                    editCtx.font = "14px system-ui";
+                    editCtx.textAlign = "center";
+                    editCtx.fillText(
+                        "画像を選択してください",
+                        editCanvas.width / 2,
+                        editCanvas.height / 2,
+                    );
+                    return;
+                }
+
+                editCtx.save();
+                editCtx.imageSmoothingEnabled = true;
+                editCtx.drawImage(
+                    bitmap,
+                    state.transform.x,
+                    state.transform.y,
+                    bitmap.width * state.transform.scale,
+                    bitmap.height * state.transform.scale,
+                );
+                editCtx.restore();
+            }
+
+            function buildSourceImageData() {
+                const bitmap = state.image.bitmap;
+                if (!bitmap) return null;
+                const height = clamp(
+                    Math.ceil(
+                        Math.max(
+                            editCanvas.height,
+                            state.transform.y +
+                                bitmap.height * state.transform.scale +
+                                20,
+                        ),
+                    ),
+                    1,
+                    3000,
+                );
+                const temp = document.createElement("canvas");
+                temp.width = DEFAULTS.paperWidthDots;
+                temp.height = height;
+                const ctx = temp.getContext("2d", { willReadFrequently: true });
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, temp.width, temp.height);
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(
+                    bitmap,
+                    state.transform.x,
+                    state.transform.y,
+                    bitmap.width * state.transform.scale,
+                    bitmap.height * state.transform.scale,
+                );
+                return ctx.getImageData(0, 0, temp.width, temp.height);
+            }
+
+            function adjustLuminance(r, g, b, options) {
+                let y = 0.299 * r + 0.587 * g + 0.114 * b;
+                y += options.brightness;
+                const contrastFactor =
+                    (259 * (options.contrast + 255)) /
+                    (255 * (259 - options.contrast));
+                y = contrastFactor * (y - 128) + 128;
+                y = 255 * Math.pow(clamp(y, 0, 255) / 255, 1 / options.gamma);
+                return clamp(y, 0, 255);
+            }
+
+            function processToMonochrome(imageData, options) {
+                const { width, height, data } = imageData;
+                const values = new Float32Array(width * height);
+                const mono = new Uint8Array(width * height);
+
+                for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+                    const alpha = data[i + 3] / 255;
+                    const r = data[i] * alpha + 255 * (1 - alpha);
+                    const g = data[i + 1] * alpha + 255 * (1 - alpha);
+                    const b = data[i + 2] * alpha + 255 * (1 - alpha);
+                    values[p] = adjustLuminance(r, g, b, options);
+                }
+
+                if (options.mode === "floyd-steinberg") {
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const idx = y * width + x;
+                            const oldValue = values[idx];
+                            const black = oldValue < options.threshold;
+                            const newValue = black ? 0 : 255;
+                            let error = oldValue - newValue;
+                            mono[idx] = black ? 1 : 0;
+
+                            if (x + 1 < width)
+                                values[idx + 1] += (error * 7) / 16;
+                            if (y + 1 < height) {
+                                if (x > 0)
+                                    values[idx + width - 1] += (error * 3) / 16;
+                                values[idx + width] += (error * 5) / 16;
+                                if (x + 1 < width)
+                                    values[idx + width + 1] += (error * 1) / 16;
+                            }
+                        }
+                    }
+                } else if (options.mode === "bayer") {
+                    const matrix = [
+                        [0, 8, 2, 10],
+                        [12, 4, 14, 6],
+                        [3, 11, 1, 9],
+                        [15, 7, 13, 5],
+                    ];
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const idx = y * width + x;
+                            const threshold =
+                                options.threshold +
+                                (matrix[y % 4][x % 4] - 7.5) * 12;
+                            mono[idx] = values[idx] < threshold ? 1 : 0;
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < values.length; i++) {
+                        mono[i] = values[i] < options.threshold ? 1 : 0;
+                    }
+                }
+
+                if (options.invert) {
+                    for (let i = 0; i < mono.length; i++)
+                        mono[i] = mono[i] ? 0 : 1;
+                }
+
+                return { width, height, mono };
+            }
+
+            function renderPrintPreview(monoResult) {
+                const { width, height, mono } = monoResult;
+                printCanvas.width = width;
+                printCanvas.height = height;
+                const out = printCtx.createImageData(width, height);
+                for (let i = 0, j = 0; i < mono.length; i++, j += 4) {
+                    const v = mono[i] ? 0 : 255;
+                    out.data[j] = v;
+                    out.data[j + 1] = v;
+                    out.data[j + 2] = v;
+                    out.data[j + 3] = 255;
+                }
+                printCtx.putImageData(out, 0, 0);
+            }
+
+            function packBitmap(monoResult) {
+                const { width, height, mono } = monoResult;
+                const widthBytes = Math.ceil(width / 8);
+                const bytes = new Uint8Array(widthBytes * height);
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const monoIndex = y * width + x;
+                        if (!mono[monoIndex]) continue;
+                        const byteIndex = y * widthBytes + (x >> 3);
+                        const bitIndex = x & 7;
+                        bytes[byteIndex] |= 0x80 >> bitIndex;
+                    }
+                }
+                return bytes;
+            }
+
+            function buildEscpos(
+                bitmapBytes,
+                widthDots,
+                heightDots,
+                feedLines,
+            ) {
+                const widthBytes = Math.ceil(widthDots / 8);
+                if (heightDots > 65535)
+                    throw new Error(
+                        "画像が長すぎます。高さは65535dot以下にしてください。",
+                    );
+                const init = new Uint8Array([0x1b, 0x40]);
+                const rasterHeader = new Uint8Array([
+                    0x1d,
+                    0x76,
+                    0x30,
+                    0x00,
+                    widthBytes & 0xff,
+                    (widthBytes >> 8) & 0xff,
+                    heightDots & 0xff,
+                    (heightDots >> 8) & 0xff,
+                ]);
+                // const feed = new Uint8Array([0x1b, 0x64, feedLines & 0xff]);
+                const feed = new Uint8Array(new Array(3).fill(0x0a));
+                return concatBytes(init, rasterHeader, bitmapBytes, feed);
+            }
+
+            let renderTimer = null;
+            function scheduleRender() {
+                clearTimeout(renderTimer);
+                renderTimer = setTimeout(renderAll, 120);
+            }
+
+            function renderAll() {
+                resizeEditCanvas();
+                renderEditCanvas();
+                const source = buildSourceImageData();
+                if (!source) {
+                    state.output.imageData = null;
+                    state.output.bitmapBytes = null;
+                    state.output.escposBytes = null;
+                    updateOutputInfo();
+                    updateButtons();
+                    return;
+                }
+                const mono = processToMonochrome(
+                    source,
+                    getProcessingOptions(),
+                );
+                renderPrintPreview(mono);
+                const bitmapBytes = packBitmap(mono);
+                const { feedLines } = getPrintOptions();
+                const escposBytes = buildEscpos(
+                    bitmapBytes,
+                    mono.width,
+                    mono.height,
+                    feedLines,
+                );
+                state.output.imageData = mono;
+                state.output.bitmapBytes = bitmapBytes;
+                state.output.escposBytes = escposBytes;
+                state.output.height = mono.height;
+                updateOutputInfo();
+                updateButtons();
+            }
+
+            function updateOutputInfo() {
+                const width = DEFAULTS.paperWidthDots;
+                const height = state.output.height || 0;
+                const bitmapBytes = state.output.bitmapBytes?.length || 0;
+                const escposBytes = state.output.escposBytes?.length || 0;
+                const chunkSize = getPrintOptions().chunkSize;
+                els.printSize.textContent = state.image.bitmap
+                    ? `${width} × ${height} dot`
+                    : "-";
+                els.bitmapSize.textContent = bitmapBytes
+                    ? `${bitmapBytes.toLocaleString()} bytes`
+                    : "-";
+                els.escposSize.textContent = escposBytes
+                    ? `${escposBytes.toLocaleString()} bytes`
+                    : "-";
+                els.chunkCount.textContent = escposBytes
+                    ? `${Math.ceil(escposBytes / chunkSize).toLocaleString()} chunks`
+                    : "-";
+            }
+
+            function setupPointerEvents() {
+                editCanvas.addEventListener("pointerdown", (event) => {
+                    if (!state.image.bitmap) return;
+                    editCanvas.setPointerCapture(event.pointerId);
+                    state.pointers.set(event.pointerId, {
+                        x: event.clientX,
+                        y: event.clientY,
+                    });
+                    state.lastPinchDistance = getPointerDistance();
+                });
+
+                editCanvas.addEventListener("pointermove", (event) => {
+                    if (
+                        !state.image.bitmap ||
+                        !state.pointers.has(event.pointerId)
+                    )
+                        return;
+                    const prev = state.pointers.get(event.pointerId);
+                    state.pointers.set(event.pointerId, {
+                        x: event.clientX,
+                        y: event.clientY,
+                    });
+
+                    if (state.pointers.size === 1) {
+                        const dx = event.clientX - prev.x;
+                        const dy = event.clientY - prev.y;
+                        const scaleX =
+                            editCanvas.width /
+                            editCanvas.getBoundingClientRect().width;
+                        state.transform.x += dx * scaleX;
+                        state.transform.y += dy * scaleX;
+                        renderAll();
+                    } else if (state.pointers.size >= 2) {
+                        const distance = getPointerDistance();
+                        if (distance && state.lastPinchDistance) {
+                            const factor = distance / state.lastPinchDistance;
+                            zoomBy(factor, false);
+                        }
+                        state.lastPinchDistance = distance;
+                    }
+                });
+
+                function endPointer(event) {
+                    state.pointers.delete(event.pointerId);
+                    state.lastPinchDistance = getPointerDistance();
+                }
+
+                editCanvas.addEventListener("pointerup", endPointer);
+                editCanvas.addEventListener("pointercancel", endPointer);
+            }
+
+            function getPointerDistance() {
+                const points = Array.from(state.pointers.values());
+                if (points.length < 2) return null;
+                const [a, b] = points;
+                return Math.hypot(a.x - b.x, a.y - b.y);
+            }
+
+            function zoomBy(factor, rerender = true) {
+                if (!state.image.bitmap) return;
+                const oldScale = state.transform.scale;
+                const newScale = clamp(oldScale * factor, 0.03, 8);
+                const cx = DEFAULTS.paperWidthDots / 2;
+                const cy = editCanvas.height / 2;
+                state.transform.x =
+                    cx - ((cx - state.transform.x) / oldScale) * newScale;
+                state.transform.y =
+                    cy - ((cy - state.transform.y) / oldScale) * newScale;
+                state.transform.scale = newScale;
+                if (rerender) renderAll();
+                else scheduleRender();
+            }
+
+            function bindEvents() {
+                els.connectBtn.addEventListener("click", connectPrinter);
+                els.disconnectBtn.addEventListener("click", disconnectPrinter);
+                els.testFeedBtn.addEventListener("click", testFeed);
+                els.fileInput.addEventListener("change", (event) =>
+                    loadImage(event.target.files[0]),
+                );
+                els.zoomOutBtn.addEventListener("click", () => zoomBy(0.9));
+                els.zoomInBtn.addEventListener("click", () => zoomBy(1.1));
+                els.fitBtn.addEventListener("click", fitImageToWidth);
+                els.centerBtn.addEventListener("click", centerImage);
+                els.resetBtn.addEventListener("click", resetTransform);
+
+                for (const el of [
+                    els.mode,
+                    els.threshold,
+                    els.brightness,
+                    els.contrast,
+                    els.gamma,
+                ]) {
+                    el.addEventListener("input", () => {
+                        updateControlLabels();
+                        saveSetting("mode", els.mode.value);
+                        saveSetting("threshold", els.threshold.value);
+                        saveSetting("brightness", els.brightness.value);
+                        saveSetting("contrast", els.contrast.value);
+                        saveSetting("gamma", Number(els.gamma.value) / 100);
+                        scheduleRender();
+                    });
+                }
+
+                els.invertBtn.addEventListener("click", () => {
+                    DEFAULTS.invert = !DEFAULTS.invert;
+                    saveSetting("invert", DEFAULTS.invert);
+                    updateControlLabels();
+                    renderAll();
+                });
+
+                for (const el of [els.chunkSize, els.delayMs, els.feedLines]) {
+                    el.addEventListener("input", () => {
+                        saveSetting("chunkSize", els.chunkSize.value);
+                        saveSetting("delayMs", els.delayMs.value);
+                        saveSetting("feedLines", els.feedLines.value);
+                        if (state.image.bitmap) scheduleRender();
+                        updateOutputInfo();
+                    });
+                }
+
+                els.serviceUuid.addEventListener("change", () =>
+                    saveSetting("serviceUuid", els.serviceUuid.value.trim()),
+                );
+                els.txUuid.addEventListener("change", () =>
+                    saveSetting("txUuid", els.txUuid.value.trim()),
+                );
+
+                els.printBtn.addEventListener("click", async () => {
+                    if (!state.output.escposBytes) return;
+                    try {
+                        els.progress.value = 0;
+                        els.progressText.textContent = "送信開始";
+                        await sendBytes(state.output.escposBytes);
+                    } catch (error) {
+                        setStatus("error", "送信エラー");
+                        log(`印刷失敗: ${error.message || error}`);
+                        log(
+                            "失敗する場合は chunkSize=50, delayMs=20 などに下げて試してください。",
+                        );
+                    }
+                });
+
+                els.cancelBtn.addEventListener("click", () => {
+                    state.ble.cancelRequested = true;
+                    log("キャンセル要求を受け付けました。");
+                });
+            }
+
+            function init() {
+                initSettings();
+                bindEvents();
+                setupPointerEvents();
+                renderEditCanvas();
+                updateOutputInfo();
+                updateButtons();
+                log(
+                    "起動しました。Android Chrome + HTTPS環境で使用してください。",
+                );
+                log(`TX UUID: ${els.txUuid.value}`);
+                log(
+                    `用紙幅: ${DEFAULTS.paperWidthDots} dot / GS v 0 / chunkSize ${els.chunkSize.value} / delay ${els.delayMs.value}ms`,
+                );
+            }
+
+            init();
+        </script>
+    </body>
+</html>
