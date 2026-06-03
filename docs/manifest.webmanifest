@@ -1,0 +1,19 @@
+{
+    "name": "BLE ESC/POS Bitmap Printer",
+    "short_name": "Mini Printer",
+    "description": "BLE ESC/POS mini printer web app with offline support.",
+    "lang": "ja",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#f5f5f7",
+    "theme_color": "#2563eb",
+    "icons": [
+        {
+            "src": "./app-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

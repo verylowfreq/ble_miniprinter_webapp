@@ -6,6 +6,11 @@
             name="viewport"
             content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <link rel="manifest" href="./manifest.webmanifest" />
+        <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
         <title>BLE ESC/POS Bitmap Printer</title>
         <style>
             :root {
@@ -567,6 +572,25 @@
                 pointers: new Map(),
                 lastPinchDistance: null,
             };
+
+            async function registerOfflineSupport() {
+                if (!("serviceWorker" in navigator)) {
+                    log("Offline cache unavailable in this browser.");
+                    return;
+                }
+                if (!window.isSecureContext) {
+                    log("Offline cache requires HTTP(S) or localhost.");
+                    return;
+                }
+                try {
+                    const registration = await navigator.serviceWorker.register(
+                        "./service-worker.js",
+                    );
+                    log(`Offline cache ready: ${registration.scope}`);
+                } catch (error) {
+                    log(`Offline cache setup failed: ${error.message || error}`);
+                }
+            }
 
             const $ = (id) => document.getElementById(id);
             const editCanvas = $("editCanvas");
@@ -1357,6 +1381,7 @@
                 renderEditCanvas();
                 updateOutputInfo();
                 updateButtons();
+                registerOfflineSupport();
                 log(
                     "起動しました。Android Chrome + HTTPS環境で使用してください。",
                 );
